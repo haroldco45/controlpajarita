@@ -1,6 +1,6 @@
 /**
  * Lógica de Control de Aplicación PWA con Enlaces de WhatsApp e Inyección Cruzada
- * Base de Datos Local: IndexedDB con Sistema de Importación/Exportación Restaurable
+ * Base de Datos Local: IndexedDB con Sistema de Importación/Exportación Restaurable y Reportes Excel
  * © Copyright VIBRAS POSITIVAS HM. Todos los derechos reservados.
  */
 
@@ -13,7 +13,7 @@ if ('serviceWorker' in navigator) {
 }
 
 let db;
-let isAdminAuthenticated = false; // Variable lógica de control de estado
+let isAdminAuthenticated = false; 
 const CLAVE_ADMIN = "1234"; 
 const TELEFONO_INGENIERO = "573117700431"; 
 
@@ -28,7 +28,7 @@ requestDB.onupgradeneeded = function(e) {
 
 requestDB.onsuccess = function(e) {
     db = e.target.result;
-    cargarTarifasEInyecciones(); // Carga LocalStorage o Parámetros del link del Operador
+    cargarTarifasEInyecciones(); 
     procesarDatosDesdeURL();
 };
 
@@ -48,7 +48,6 @@ function encodeBase64UTF8(str) {
     }));
 }
 
-// Procesa si el teléfono es el del Operador y tiene tarifas inyectadas en su link inicial
 function cargarTarifasEInyecciones() {
     const urlParams = new URLSearchParams(window.location.search);
     
@@ -78,7 +77,6 @@ function cargarTarifasEInyecciones() {
     }
 }
 
-// Absorber datos cuando tú (Ingeniero) toques el reporte diario enviado por el operador
 function procesarDatosDesdeURL() {
     const urlParams = new URLSearchParams(window.location.search);
     const datosBase64 = urlParams.get('d');
@@ -121,7 +119,6 @@ function procesarDatosDesdeURL() {
     }
 }
 
-// Guardar Tarifas Locales
 document.getElementById('btn-guardar-tarifas').addEventListener('click', function() {
     localStorage.setItem('tarifa_valor_hora', document.getElementById('admin-valor-hora').value);
     localStorage.setItem('tarifa_sueldo_operador', document.getElementById('admin-sueldo-operador').value);
@@ -130,7 +127,6 @@ document.getElementById('btn-guardar-tarifas').addEventListener('click', functio
     alert("✔️ Tarifas guardadas localmente.");
 });
 
-// Generar y compartir el Link Maestro con las tarifas inyectadas para el celular del operador
 document.getElementById('btn-compartir-operador').addEventListener('click', function() {
     const vH = document.getElementById('admin-valor-hora').value;
     const sO = document.getElementById('admin-sueldo-operador').value;
@@ -144,14 +140,12 @@ document.getElementById('btn-compartir-operador').addEventListener('click', func
 
     const urlBase = window.location.origin + window.location.pathname;
     const enlaceOperador = `${urlBase}?vH=${vH}&sO=${sO}&cC=${cC}&oG=${oG}`;
-
     const textoWhatsApp = `🚜 *ENLACE CONFIGURADO CONTROL PAJARITA*\n\n` +
                           `Hola, toca este enlace para abrir e instalar la aplicación en tu celular con los parámetros listos para trabajar:\n\n🔗 ${enlaceOperador}`;
 
     window.open(`https://wa.me/?text=${encodeURIComponent(textoWhatsApp)}`, '_blank');
 });
 
-// LÓGICA DE CONTROL ADMINISTRATIVO TOTALMENTE BLINDADA CONTRA TEXTOS
 document.getElementById('btn-toggle-admin').addEventListener('click', function() {
     if (!isAdminAuthenticated) {
         const pass = prompt("Introduce la clave de acceso de Ingeniero:");
@@ -171,18 +165,6 @@ document.getElementById('btn-toggle-admin').addEventListener('click', function()
     }
 });
 
-// Estado de Red
-const statusDiv = document.getElementById('connection-status');
-window.addEventListener('online', () => {
-    statusDiv.innerHTML = `<span class="w-2 h-2 rounded-full bg-white animate-pulse"></span> En Línea`;
-    statusDiv.className = "bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5 shadow-sm";
-});
-window.addEventListener('offline', () => {
-    statusDiv.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Modo Offline`;
-    statusDiv.className = "bg-rose-700 text-white text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5 shadow-sm";
-});
-
-// Envío del Formulario Diario por el Operario
 document.getElementById('form-registro').addEventListener('submit', function(e) {
     e.preventDefault();
 
@@ -199,7 +181,6 @@ document.getElementById('form-registro').addEventListener('submit', function(e) 
     }
 
     const horasTrabajadas = parseFloat((hFinal - hInicial).toFixed(2));
-
     const vHoraContrato = parseFloat(document.getElementById('admin-valor-hora').value) || 0;
     const sOperadorHora = parseFloat(document.getElementById('admin-sueldo-operador').value) || 0;
     const cCombustibleGalon = parseFloat(document.getElementById('admin-costo-combustible').value) || 0;
@@ -262,7 +243,6 @@ function actualizarInterfaz() {
         }
 
         registros.sort((a, b) => b.timestamp - a.timestamp);
-
         const ultimoHorometro = registros[0].hFinal;
         document.getElementById('stat-horometro').innerText = `${ultimoHorometro.toFixed(1)} hrs`;
 
@@ -305,14 +285,13 @@ function actualizarInterfaz() {
                     </div>
                 `;
             }
-
             item.innerHTML = htmlContenido;
             lista.appendChild(item);
         });
     };
 }
 
-// BACKUP Y REPORTES
+// BACKUP JSON
 document.getElementById('btn-backup').addEventListener('click', function() {
     const tx = db.transaction(['registros'], 'readonly');
     const store = tx.objectStore('registros');
@@ -328,6 +307,7 @@ document.getElementById('btn-backup').addEventListener('click', function() {
     };
 });
 
+// IMPRESIÓN / REPORTE PDF
 document.getElementById('btn-informe').addEventListener('click', function() {
     const titulo = document.getElementById('titulo-historial');
     const originalText = titulo.innerText;
@@ -336,7 +316,7 @@ document.getElementById('btn-informe').addEventListener('click', function() {
     titulo.innerText = originalText;
 });
 
-// LÓGICA DE RESTAURACIÓN DE COPIA DE SEGURIDAD (IMPORTAR JSON)
+// RESTAURAR BACKUP JSON
 document.getElementById('input-restore').addEventListener('change', function(e) {
     const archivo = e.target.files[0];
     if (!archivo) return;
@@ -345,22 +325,12 @@ document.getElementById('input-restore').addEventListener('change', function(e) 
     lector.onload = function(evento) {
         try {
             const registrosImportados = JSON.parse(evento.target.result);
-            
-            if (!Array.isArray(registrogImportados) && Array.isArray(registrosImportados)) {
-                // Validación tolerante de formatos
-            } else if (!Array.isArray(registrosImportados)) {
-                alert("❌ El archivo seleccionado no tiene el formato de copia de seguridad válido.");
+            if (!Array.isArray(registrosImportados)) {
+                alert("❌ Archivo de copia no válido.");
                 return;
             }
-
-            if (!db) {
-                alert("❌ Base de datos no inicializada. Inténtalo de nuevo.");
-                return;
-            }
-
             const tx = db.transaction(['registros'], 'readwrite');
             const store = tx.objectStore('registros');
-            
             const requestCheck = store.getAll();
             
             requestCheck.onsuccess = function() {
@@ -380,17 +350,111 @@ document.getElementById('input-restore').addEventListener('change', function(e) 
                 });
 
                 tx.oncomplete = function() {
-                    alert(`📥 ¡Restauración Completada!\n\n✔️ Registros nuevos integrados: ${agregados}\nℹ️ Registros omitidos por ya existir: ${duplicados}`);
+                    alert(`📥 ¡Importación Exitosa!\nNuevos registrados: ${agregados}\nOmitidos: ${duplicados}`);
                     document.getElementById('input-restore').value = ""; 
                     actualizarInterfaz(); 
                 };
             };
-
         } catch (error) {
-            alert("❌ Ocurrió un error al procesar el archivo JSON. Asegúrate de que esté intacto.");
-            console.error(error);
+            alert("❌ Error al procesar el archivo.");
         }
     };
-    
     lector.readAsText(archivo);
+});
+
+// =========================================================================
+// NUEVO: MOTOR DE EXPORTACIÓN EXCEL (.XLSX) PROFESIONAL - SHEETJS
+// =========================================================================
+document.getElementById('btn-excel').addEventListener('click', function() {
+    if (!db) return;
+    
+    const tx = db.transaction(['registros'], 'readonly');
+    const store = tx.objectStore('registros');
+    const request = store.getAll();
+
+    request.onsuccess = function() {
+        const registros = request.result;
+        if (registros.length === 0) {
+            alert("❌ No hay registros históricos guardados para exportar.");
+            return;
+        }
+
+        // Ordenar cronológicamente (más antiguo a más reciente para contabilidad)
+        registros.sort((a, b) => a.timestamp - b.timestamp);
+
+        // Arreglo de filas estructuradas para SheetJS
+        const filasExcel = [];
+        
+        // Variables para los acumulados totales de la base de datos
+        let totalHoras = 0;
+        let totalCombustible = 0;
+        let totalIngresoBruto = 0;
+        let totalPagoOperador = 0;
+        let totalCostoCombustible = 0;
+        let totalOtrosGastos = 0;
+        let totalUtilidadNeta = 0;
+
+        registros.forEach(reg => {
+            const f = reg.finanzas || { ingresoBruto:0, pagoOperadorTotal:0, costoCombustibleTotal:0, oGastos:0, utilidadNetaIngeniero:0 };
+            
+            // Sumatorias permanentes
+            totalHoras += reg.horasTrabajadas;
+            totalCombustible += reg.combustible;
+            totalIngresoBruto += f.ingresoBruto;
+            totalPagoOperador += f.pagoOperadorTotal;
+            totalCostoCombustible += f.costoCombustibleTotal;
+            totalOtrosGastos += f.oGastos;
+            totalUtilidadNeta += f.utilidadNetaIngeniero;
+
+            // Inyección de datos por fila
+            filasExcel.push({
+                "Fecha": reg.fecha,
+                "Operador": reg.operador,
+                "H. Inicial": reg.hInicial,
+                "H. Final": reg.hFinal,
+                "Horas Diarias": reg.horasTrabajadas,
+                "ACPM (Gal)": reg.combustible,
+                "Ingreso Bruto Contrato": f.ingresoBruto,
+                "Sueldo Operador": f.pagoOperadorTotal,
+                "Costo Combustible": f.costoCombustibleTotal,
+                "Otros Gastos / Imprevistos": f.oGastos,
+                "Utilidad Neta Ingeniero": f.utilidadNetaIngeniero,
+                "Observaciones y Novedades de Obra": reg.notas || ""
+            });
+        });
+
+        // Fila divisoria estética
+        filasExcel.push({});
+
+        // Inyección de Fila de Totales Acumulados
+        filasExcel.push({
+            "Fecha": "TOTALES ACUMULADOS",
+            "Operador": "",
+            "H. Inicial": "",
+            "H. Final": "",
+            "Horas Diarias": totalHoras,
+            "ACPM (Gal)": totalCombustible,
+            "Ingreso Bruto Contrato": totalIngresoBruto,
+            "Sueldo Operador": totalPagoOperador,
+            "Costo Combustible": totalCostoCombustible,
+            "Otros Gastos / Imprevistos": totalOtrosGastos,
+            "Utilidad Neta Ingeniero": totalUtilidadNeta,
+            "Observaciones y Novedades de Obra": "Reporte Generado por VIBRAS POSITIVAS HM"
+        });
+
+        // Crear Libro y Hoja de Trabajo de SheetJS
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(filasExcel);
+
+        // Añadir formato de ancho de columnas automático para legibilidad
+        const maxCols = [15, 18, 12, 12, 14, 12, 22, 18, 18, 25, 22, 40];
+        ws['!cols'] = maxCols.map(w => ({ wch: w }));
+
+        // Incorporar la hoja al libro de trabajo
+        XLSX.utils.book_append_sheet(wb, ws, "Balance Contable Pajarita");
+
+        // Disparar la descarga del archivo físico binario en el dispositivo
+        const fechaHoy = new Date().toISOString().split('T')[0];
+        XLSX.writeFile(wb, `Informe_Financiero_Pajarita_${fechaHoy}.xlsx`);
+    };
 });
