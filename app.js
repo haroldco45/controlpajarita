@@ -1,7 +1,7 @@
 /**
  * Lógica de Control de Aplicación PWA con Enlaces de WhatsApp
  * Base de Datos Local: IndexedDB
- * © Copyright Vibras Positivas. Todos los derechos reservados.
+ * © Copyright VIBRAS POSITIVAS HM. Todos los derechos reservados.
  */
 
 if ('serviceWorker' in navigator) {
@@ -15,7 +15,7 @@ if ('serviceWorker' in navigator) {
 let db;
 let isAdminAuthenticated = false;
 const CLAVE_ADMIN = "1234"; 
-const TELEFONO_INGENIERO = "573117700431"; // Formato internacional para Colombia (57)
+const TELEFONO_INGENIERO = "573117700431"; // Formato internacional para Colombia
 
 const requestDB = indexedDB.open('ControlPajaritaDB', 2);
 
@@ -28,28 +28,41 @@ requestDB.onupgradeneeded = function(e) {
 
 requestDB.onsuccess = function(e) {
     db = e.target.result;
-    // CRUCIAL: Verificar si venimos desde un link de WhatsApp con datos adjuntos
     procesarDatosDesdeURL();
 };
 
-// Función para procesar y absorber los datos que llegan desde el link de WhatsApp
+requestDB.onerror = function(e) {
+    console.error("Error al abrir IndexedDB:", e);
+};
+
+// Función segura para decodificar Base64 con soporte de caracteres especiales (UTF-8)
+function decodeBase64UTF8(str) {
+    return decodeURIComponent(atob(str).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+}
+
+// Función segura para codificar Base64 con soporte de caracteres especiales (UTF-8)
+function encodeBase64UTF8(str) {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
+        return String.fromCharCode('0x' + p1);
+    }));
+}
+
+// Procesar y absorber los datos que llegan desde el link de WhatsApp
 function procesarDatosDesdeURL() {
     const urlParams = new URLSearchParams(window.location.search);
-    const datosBase64 = urlParams.get('d'); // Captura el parámetro '?d='
+    const datosBase64 = urlParams.get('d');
 
     if (datosBase64) {
         try {
-            // Decodifica la información de formato Base64 a texto plano y luego a Objeto JSON
-            const datosDecodificados = JSON.parse(atob(datosBase64));
+            const jsonTexto = decodeBase64UTF8(datosBase64);
+            const datosDecodificados = JSON.parse(jsonTexto);
             
-            // Validamos que sea un registro legítimo
             if (datosDecodificados.fecha && datosDecodificados.hFinal) {
-                
-                // Insertar en la base de datos local del Ingeniero
                 const tx = db.transaction(['registros'], 'readwrite');
                 const store = tx.objectStore('registros');
                 
-                // Verificación opcional para evitar duplicados exactos usando el timestamp de creación
                 const requestCheck = store.getAll();
                 requestCheck.onsuccess = function() {
                     const existentes = requestCheck.result;
@@ -58,8 +71,7 @@ function procesarDatosDesdeURL() {
                     if (!esDuplicado) {
                         store.add(datosDecodificados);
                         tx.oncomplete = function() {
-                            alert(`✔️ ¡Éxito! Registro de la fecha ${datosDecodificados.fecha} absorbido e integrado a tu base histórica.`);
-                            // Limpiar la URL para evitar que se vuelva a agregar si se recarga la página
+                            alert(`✔️ ¡Éxito! Registro de la fecha ${datosDecodificados.fecha} integrado a tu base histórica.`);
                             window.history.replaceState({}, document.title, window.location.pathname);
                             actualizarInterfaz();
                         };
@@ -72,7 +84,9 @@ function procesarDatosDesdeURL() {
             }
         } catch (error) {
             console.error("Error al decodificar los datos del enlace:", error);
-            alert("❌ El enlace de datos de WhatsApp parece estar corrupto o incompleto.");
+            alert("❌ El enlace de datos de WhatsApp parece estar incompleto o dañado.");
+            window.history.replaceState({}, document.title, window.location.pathname);
+            actualizarInterfaz();
         }
     } else {
         actualizarInterfaz();
@@ -151,7 +165,7 @@ document.getElementById('form-registro').addEventListener('submit', function(e) 
         timestamp: new Date().getTime()
     };
 
-    // 1. Guardar localmente en el dispositivo que lo digita (sea el operador o supervisor)
+    // 1. Guardar localmente
     const tx = db.transaction(['registros'], 'readwrite');
     const store = tx.objectStore('registros');
     store.add(nuevoRegistro);
@@ -160,29 +174,27 @@ document.getElementById('form-registro').addEventListener('submit', function(e) 
         document.getElementById('form-registro').reset();
         actualizarInterfaz();
 
-        // 2. CONSTRUIR EL ENLACE MÁGICO DE TRANSFERENCIA DE DATOS
-        // Obtenemos la URL base actual de la app (ej: https://tu-usuario.github.io/pajarita/)
+        // 2. CONSTRUIR ENLACE DE TRANSFERENCIA SEGURO
         const urlBase = window.location.origin + window.location.pathname;
-        
-        // Codificamos el objeto JSON completo en una cadena Base64 segura para URLs
         const stringCadena = JSON.stringify(nuevoRegistro);
-        const base64Datos = btoa(unescape(encodeURIComponent(stringCadena)));
         
+        // Uso de la nueva función de codificación sin métodos obsoletos
+        const base64Datos = encodeBase64UTF8(stringCadena);
         const enlaceFinalDeSincronizacion = `${urlBase}?d=${base64Datos}`;
 
-        // 3. REDACTAR MENSAJE DE TEXTO VISUAL PARA WHATSAPP
-        const textoMensaje = `🚜 *REPORTE PAJARITA - ${fecha}*\n\n` +
+        // 3. REDACTAR MENSAJE PARA WHATSAPP
+        const textoMensaje = `⚠️ *REPORTE PAJARITA - ${fecha}*\n\n` +
                              `👷 *Operador:* ${operador}\n` +
                              `⏱️ *Horas Trabajadas:* ${horasTrabajadas} hrs\n` +
                              `⛽ *Combustible:* ${combustible} Gal.\n` +
                              `📝 *Notas:* ${notas || 'Ninguna'}\n\n` +
-                             `🔗 *Ingeniero, toque este link para ingresar los datos a la base histórica de su celular/PC:* \n${enlaceFinalDeSincronizacion}`;
+                             `🔗 *Ingeniero, toque este link para actualizar su base histórica:* \n${enlaceFinalDeSincronizacion}`;
 
-        // 4. DISPARAR LA API DE WHATSAPP
-        const urlWhatsapp = `https://api.whatsapp.com/send?phone=${TELEFONO_INGENIERO}&text=${encodeURIComponent(textoMensaje)}`;
+        // 4. DISPARAR WHATSAPP (Formato compatible universal)
+        const urlWhatsapp = `https://wa.me/${TELEFONO_INGENIERO}?text=${encodeURIComponent(textoMensaje)}`;
         
-        // Abre WhatsApp en una pestaña nueva o en la app del teléfono
-        window.open(urlWhatsapp, '_blank');
+        // Redirección directa en la misma pestaña para mejorar compatibilidad en PWAs móviles
+        window.location.href = urlWhatsapp;
     };
 });
 
@@ -242,7 +254,7 @@ function actualizarInterfaz() {
                         <p class="text-slate-400 font-medium">Gasto ACPM: <span class="text-rose-400 font-bold">${formatMoney(f.costoCombustibleTotal)}</span></p>
                         <p class="text-slate-400 font-medium">Otros Gastos: <span class="text-rose-400 font-bold">${formatMoney(f.oGastos)}</span></p>
                         <div class="col-span-2 mt-1 pt-1 border-t border-slate-800 flex justify-between items-center">
-                            <span class="font-bold text-amber-400 uppercase tracking-wider text-[10px]">Utilidad Neta Ingeniero:</span>
+                            <span class="font-bold text-amber-400 uppercase tracking-wider text-[10px]">Utilidad Neta:</span>
                             <span class="font-black ${f.utilidadNetaIngeniero >= 0 ? 'text-emerald-400' : 'text-rose-500'} text-sm">${formatMoney(f.utilidadNetaIngeniero)}</span>
                         </div>
                     </div>
