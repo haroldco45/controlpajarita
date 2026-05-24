@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control de Retroexcavadora Pajarita</title>
-    <link rel="manifest" href="manifest.json">
+    <link class="no-print" rel="manifest" href="manifest.json">
     
     <meta property="og:type" content="website">
     <meta property="og:title" content="Control Pajarita 🚜 | Gestión de Maquinaria">
@@ -13,11 +13,10 @@
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="400">
     <meta property="og:image:height" content="400">
-
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="styles.css">
     <meta name="theme-color" content="#f59e0b">
-    <link rel="apple-touch-icon" href="icon.png">
+    <link class="no-print" rel="apple-touch-icon" href="icon.png">
 </head>
 <body class="bg-slate-900 text-slate-100 font-sans min-h-screen pb-12">
 
@@ -26,7 +25,7 @@
             <h1 class="text-xl font-bold tracking-tight">Control Pajarita 🚜</h1>
             <p class="text-xs font-semibold opacity-85">Gestión de Maquinaria Pesada</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 no-print">
             <button id="btn-toggle-admin" class="bg-slate-950 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-800 hover:bg-slate-900 cursor-pointer">
                 🔓 Abrir Admin
             </button>
@@ -50,12 +49,16 @@
             </div>
         </section>
 
-        <section class="grid grid-cols-2 gap-3 no-print">
-            <button id="btn-backup" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold p-2.5 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer shadow">
-                💾 Guardar Backup (JSON)
+        <section class="grid grid-cols-3 gap-2 no-print">
+            <button id="btn-backup" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold p-2 rounded-xl text-[11px] flex items-center justify-center gap-1 cursor-pointer shadow">
+                💾 Copia JSON
             </button>
-            <button id="btn-informe" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold p-2.5 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer shadow">
-                📊 Generar Informe / 🖨️
+            <label class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold p-2 rounded-xl text-[11px] flex items-center justify-center gap-1 cursor-pointer shadow text-center select-none">
+                📥 Importar
+                <input type="file" id="input-restore" accept=".json" class="hidden">
+            </label>
+            <button id="btn-informe" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold p-2 rounded-xl text-[11px] flex items-center justify-center gap-1 cursor-pointer shadow">
+                📊 Informe / 🖨️
             </button>
         </section>
 
