@@ -9,10 +9,10 @@
     <meta property="og:type" content="website">
     <meta property="og:title" content="Control Pajarita 🚜 | Gestión de Maquinaria">
     <meta property="og:description" content="Aplicación PWA oficial para el control operativo, horómetros, combustible y mantenimiento preventivo offline.">
-    <meta property="og:image" content="https://ldco45.github.io/1779618748797.png">
+    <meta property="og:image" content="https://ldco45.github.io/control_pajarita/1779618748797.png">
     <meta property="og:image:type" content="image/png">
-    <meta property="og:image:width" content="300">
-    <meta property="og:image:height" content="300">
+    <meta property="og:image:width" content="400">
+    <meta property="og:image:height" content="400">
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="styles.css">
     <meta name="theme-color" content="#f59e0b">
@@ -27,7 +27,7 @@
         </div>
         <div class="flex items-center gap-2">
             <button id="btn-toggle-admin" class="bg-slate-950 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-800 hover:bg-slate-900 cursor-pointer">
-                Lock Admin 🔒
+                🔓 Abrir Admin
             </button>
             <div id="connection-status" class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5 shadow-sm">
                 <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
@@ -113,4 +113,30 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Combustible Suministrado (Galones)</label>
-                    <input type="number" step="0.1" id="input-combustible" placeholder="0 si no tanqueó" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-
+                    <input type="number" step="0.1" id="input-combustible" placeholder="0 si no tanqueó" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-amber-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Notas u Observaciones Novedades</label>
+                    <textarea id="input-notas" placeholder="Ej. Fuga leve en cilindro de balde..." rows="2" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-amber-500"></textarea>
+                </div>
+                <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold p-3 rounded-lg transition-colors cursor-pointer shadow-lg active:scale-[0.99]">
+                    Guardar y Enviar por WhatsApp 🚀
+                </button>
+            </form>
+        </section>
+
+        <section class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl print-container">
+            <h2 id="titulo-historial" class="text-lg font-bold mb-3 text-slate-300 border-b border-slate-700 pb-2">Historial Reciente (Offline local)</h2>
+            <div id="lista-registros" class="space-y-3 max-h-96 overflow-y-auto pr-1">
+                <p class="text-sm text-slate-500 italic text-center py-4">No hay registros guardados en este dispositivo.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="text-center text-xs text-slate-500 py-6 border-t border-slate-800 mt-12 bg-slate-950/50 printable-footer">
+        <p>&copy; 2026 VIBRAS POSITIVAS HM. Todos los derechos reservados.</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
