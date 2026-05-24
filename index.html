@@ -5,27 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control de Retroexcavadora Pajarita</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="styles.css">
     <meta name="theme-color" content="#f59e0b">
     <link rel="apple-touch-icon" href="icon.png">
 </head>
 <body class="bg-slate-900 text-slate-100 font-sans min-h-screen pb-12">
 
-    <header class="bg-amber-500 text-slate-950 p-4 shadow-lg flex justify-between items-center sticky top-0 z-50">
+    <header class="bg-amber-500 text-slate-950 p-4 shadow-lg flex justify-between items-center sticky top-0 z-50 printable-header">
         <div>
             <h1 class="text-xl font-bold tracking-tight">Control Pajarita 🚜</h1>
             <p class="text-xs font-semibold opacity-85">Gestión de Maquinaria Pesada</p>
         </div>
-        <div id="connection-status" class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5 shadow-sm">
-            <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
-            En Línea
+        <div class="flex items-center gap-2">
+            <button id="btn-toggle-admin" class="bg-slate-950 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-800 hover:bg-slate-900 cursor-pointer">
+                Lock Admin 🔒
+            </button>
+            <div id="connection-status" class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5 shadow-sm">
+                <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                En Línea
+            </div>
         </div>
     </header>
 
     <main class="max-w-md mx-auto p-4 space-y-6">
 
-        <section class="grid grid-cols-2 gap-4">
+        <section class="grid grid-cols-2 gap-4 no-print">
             <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-md">
                 <span class="text-xs text-slate-400 block mb-1">Último Horómetro</span>
                 <span id="stat-horometro" class="text-2xl font-black text-amber-400">0.0 hrs</span>
@@ -36,7 +41,46 @@
             </div>
         </section>
 
-        <section class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl">
+        <section class="grid grid-cols-2 gap-3 no-print">
+            <button id="btn-backup" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold p-2.5 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer shadow">
+                💾 Guardar Backup (JSON)
+            </button>
+            <button id="btn-informe" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold p-2.5 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer shadow">
+                📊 Generar Informe / 🖨️
+            </button>
+        </section>
+
+        <section id="modulo-admin" class="hidden bg-slate-800 p-5 rounded-2xl border-2 border-amber-500 shadow-2xl space-y-4 no-print">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2">🔑 Panel Financiero (Admin)</h2>
+                <span class="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 font-mono">Ingeniero</span>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Valor Contrato / Hora</label>
+                    <input type="number" id="admin-valor-hora" placeholder="$ Recibido" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-amber-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Sueldo Operador / Hora</label>
+                    <input type="number" id="admin-sueldo-operador" placeholder="$ Pago Operador" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-amber-500 text-sm">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Costo Combustible / Galón</label>
+                    <input type="number" id="admin-costo-combustible" placeholder="$ por Galón" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-amber-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Otros Gastos (Imprevistos)</label>
+                    <input type="number" id="admin-otros-gastos" placeholder="$ Repuestos, etc" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-amber-500 text-sm">
+                </div>
+            </div>
+            <p class="text-[11px] text-slate-400 italic">Establece estos valores antes de guardar el registro diario para calcular las utilidades netas del Ingeniero.</p>
+        </section>
+
+        <section id="sec-formulario" class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl no-print">
             <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-amber-400 border-b border-slate-700 pb-2">
                 📝 Registrar Jornada Diaria
             </h2>
@@ -65,7 +109,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Notas u Observaciones Novedades</label>
-                    <textarea id="input-notas" placeholder="Ej. Fuga leve en cilindro de balde, terreno rocoso..." rows="2" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-amber-500"></textarea>
+                    <textarea id="input-notas" placeholder="Ej. Fuga leve en cilindro de balde..." rows="2" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-amber-500"></textarea>
                 </div>
                 <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold p-3 rounded-lg transition-colors cursor-pointer shadow-lg active:scale-[0.99]">
                     Guardar Registro Local
@@ -73,15 +117,15 @@
             </form>
         </section>
 
-        <section class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl">
-            <h2 class="text-lg font-bold mb-3 text-slate-300">Historial Reciente (Offline local)</h2>
-            <div id="lista-registros" class="space-y-3 max-h-60 overflow-y-auto pr-1">
+        <section class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl print-container">
+            <h2 id="titulo-historial" class="text-lg font-bold mb-3 text-slate-300 border-b border-slate-700 pb-2">Historial Reciente (Offline local)</h2>
+            <div id="lista-registros" class="space-y-3 max-h-96 overflow-y-auto pr-1">
                 <p class="text-sm text-slate-500 italic text-center py-4">No hay registros guardados en este dispositivo.</p>
             </div>
         </section>
     </main>
 
-    <footer class="text-center text-xs text-slate-500 py-6 border-t border-slate-800 mt-12 bg-slate-950/50">
+    <footer class="text-center text-xs text-slate-500 py-6 border-t border-slate-800 mt-12 bg-slate-950/50 printable-footer">
         <p>&copy; 2026 Vibras Positivas. Todos los derechos reservados.</p>
     </footer>
 
