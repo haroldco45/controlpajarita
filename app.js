@@ -1,5 +1,5 @@
 /**
- * Lógica de Control de Aplicación PWA con Módulo Financiero
+ * Lógica de Control de Aplicación PWA con Enlaces de WhatsApp
  * Base de Datos Local: IndexedDB
  * © Copyright Vibras Positivas. Todos los derechos reservados.
  */
@@ -14,9 +14,10 @@ if ('serviceWorker' in navigator) {
 
 let db;
 let isAdminAuthenticated = false;
-const CLAVE_ADMIN = "1234"; // Cambiar por la contraseña de preferencia del Ingeniero
+const CLAVE_ADMIN = "1234"; 
+const TELEFONO_INGENIERO = "573117700431"; // Formato internacional para Colombia (57)
 
-const requestDB = indexedDB.open('ControlPajaritaDB', 2); // Subimos versión por cambio de esquema financiero
+const requestDB = indexedDB.open('ControlPajaritaDB', 2);
 
 requestDB.onupgradeneeded = function(e) {
     db = e.target.result;
@@ -27,8 +28,56 @@ requestDB.onupgradeneeded = function(e) {
 
 requestDB.onsuccess = function(e) {
     db = e.target.result;
-    actualizarInterfaz();
+    // CRUCIAL: Verificar si venimos desde un link de WhatsApp con datos adjuntos
+    procesarDatosDesdeURL();
 };
+
+// Función para procesar y absorber los datos que llegan desde el link de WhatsApp
+function procesarDatosDesdeURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const datosBase64 = urlParams.get('d'); // Captura el parámetro '?d='
+
+    if (datosBase64) {
+        try {
+            // Decodifica la información de formato Base64 a texto plano y luego a Objeto JSON
+            const datosDecodificados = JSON.parse(atob(datosBase64));
+            
+            // Validamos que sea un registro legítimo
+            if (datosDecodificados.fecha && datosDecodificados.hFinal) {
+                
+                // Insertar en la base de datos local del Ingeniero
+                const tx = db.transaction(['registros'], 'readwrite');
+                const store = tx.objectStore('registros');
+                
+                // Verificación opcional para evitar duplicados exactos usando el timestamp de creación
+                const requestCheck = store.getAll();
+                requestCheck.onsuccess = function() {
+                    const existentes = requestCheck.result;
+                    const esDuplicado = existentes.some(r => r.timestamp === datosDecodificados.timestamp);
+                    
+                    if (!esDuplicado) {
+                        store.add(datosDecodificados);
+                        tx.oncomplete = function() {
+                            alert(`✔️ ¡Éxito! Registro de la fecha ${datosDecodificados.fecha} absorbido e integrado a tu base histórica.`);
+                            // Limpiar la URL para evitar que se vuelva a agregar si se recarga la página
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                            actualizarInterfaz();
+                        };
+                    } else {
+                        alert(`ℹ️ Este registro ya existía en tu base histórica.`);
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        actualizarInterfaz();
+                    }
+                };
+            }
+        } catch (error) {
+            console.error("Error al decodificar los datos del enlace:", error);
+            alert("❌ El enlace de datos de WhatsApp parece estar corrupto o incompleto.");
+        }
+    } else {
+        actualizarInterfaz();
+    }
+}
 
 // Control de Autenticación de Módulo Administrativo
 document.getElementById('btn-toggle-admin').addEventListener('click', function() {
@@ -40,9 +89,9 @@ document.getElementById('btn-toggle-admin').addEventListener('click', function()
             this.classList.remove('text-amber-400');
             this.classList.add('text-emerald-400');
             document.getElementById('modulo-admin').classList.remove('hidden');
-            actualizarInterfaz(); // Re-renderizar para mostrar datos financieros
+            actualizarInterfaz();
         } else {
-            alert("❌ Clave incorrecta. Acceso denegado.");
+            alert("❌ Clave incorrecta.");
         }
     } else {
         isAdminAuthenticated = false;
@@ -50,11 +99,11 @@ document.getElementById('btn-toggle-admin').addEventListener('click', function()
         this.classList.remove('text-emerald-400');
         this.classList.add('text-amber-400');
         document.getElementById('modulo-admin').classList.add('hidden');
-        actualizarInterfaz(); // Ocultar datos financieros de la vista común
+        actualizarInterfaz();
     }
 });
 
-// Manejo de Red
+// Manejo de Estado de Red
 const statusDiv = document.getElementById('connection-status');
 window.addEventListener('online', () => {
     statusDiv.innerHTML = `<span class="w-2 h-2 rounded-full bg-white animate-pulse"></span> En Línea`;
@@ -65,7 +114,7 @@ window.addEventListener('offline', () => {
     statusDiv.className = "bg-rose-700 text-white text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5 shadow-sm";
 });
 
-// Guardar Registro Diario
+// Guardar Registro Diario y Disparar WhatsApp
 document.getElementById('form-registro').addEventListener('submit', function(e) {
     e.preventDefault();
 
@@ -83,13 +132,11 @@ document.getElementById('form-registro').addEventListener('submit', function(e) 
 
     const horasTrabajadas = parseFloat((hFinal - hInicial).toFixed(2));
 
-    // Captura de variables financieras del Admin (Si no está activo, guarda en 0)
     const vHoraContrato = parseFloat(document.getElementById('admin-valor-hora').value) || 0;
     const sOperadorHora = parseFloat(document.getElementById('admin-sueldo-operador').value) || 0;
     const cCombustibleGalon = parseFloat(document.getElementById('admin-costo-combustible').value) || 0;
     const oGastos = parseFloat(document.getElementById('admin-otros-gastos').value) || 0;
 
-    // Cálculos matemáticos de control de pérdidas y ganancias
     const ingresoBruto = horasTrabajadas * vHoraContrato;
     const pagoOperadorTotal = horasTrabajadas * sOperadorHora;
     const costoCombustibleTotal = combustible * cCombustibleGalon;
@@ -104,6 +151,7 @@ document.getElementById('form-registro').addEventListener('submit', function(e) 
         timestamp: new Date().getTime()
     };
 
+    // 1. Guardar localmente en el dispositivo que lo digita (sea el operador o supervisor)
     const tx = db.transaction(['registros'], 'readwrite');
     const store = tx.objectStore('registros');
     store.add(nuevoRegistro);
@@ -111,7 +159,30 @@ document.getElementById('form-registro').addEventListener('submit', function(e) 
     tx.oncomplete = function() {
         document.getElementById('form-registro').reset();
         actualizarInterfaz();
-        alert('✔️ Registro guardado con éxito localmente.');
+
+        // 2. CONSTRUIR EL ENLACE MÁGICO DE TRANSFERENCIA DE DATOS
+        // Obtenemos la URL base actual de la app (ej: https://tu-usuario.github.io/pajarita/)
+        const urlBase = window.location.origin + window.location.pathname;
+        
+        // Codificamos el objeto JSON completo en una cadena Base64 segura para URLs
+        const stringCadena = JSON.stringify(nuevoRegistro);
+        const base64Datos = btoa(unescape(encodeURIComponent(stringCadena)));
+        
+        const enlaceFinalDeSincronizacion = `${urlBase}?d=${base64Datos}`;
+
+        // 3. REDACTAR MENSAJE DE TEXTO VISUAL PARA WHATSAPP
+        const textoMensaje = `🚜 *REPORTE PAJARITA - ${fecha}*\n\n` +
+                             `👷 *Operador:* ${operador}\n` +
+                             `⏱️ *Horas Trabajadas:* ${horasTrabajadas} hrs\n` +
+                             `⛽ *Combustible:* ${combustible} Gal.\n` +
+                             `📝 *Notas:* ${notas || 'Ninguna'}\n\n` +
+                             `🔗 *Ingeniero, toque este link para ingresar los datos a la base histórica de su celular/PC:* \n${enlaceFinalDeSincronizacion}`;
+
+        // 4. DISPARAR LA API DE WHATSAPP
+        const urlWhatsapp = `https://api.whatsapp.com/send?phone=${TELEFONO_INGENIERO}&text=${encodeURIComponent(textoMensaje)}`;
+        
+        // Abre WhatsApp en una pestaña nueva o en la app del teléfono
+        window.open(urlWhatsapp, '_blank');
     };
 });
 
@@ -147,7 +218,6 @@ function actualizarInterfaz() {
             const item = document.createElement('div');
             item.className = "bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs space-y-2 break-inside-avoid";
             
-            // Sección estándar visible para el operador
             let htmlContenido = `
                 <div class="flex justify-between font-bold text-slate-300 border-b border-slate-900 pb-1">
                     <span>📅 ${reg.fecha}</span>
@@ -161,7 +231,6 @@ function actualizarInterfaz() {
                 ${reg.notas ? `<p class="text-slate-400 italic bg-slate-900/40 p-1.5 rounded text-[11px] border-l-2 border-slate-600">${reg.notas}</p>` : ''}
             `;
 
-            // Inyección de Datos Financieros Exclusivos si el Ingeniero está autenticado
             if (isAdminAuthenticated && reg.finanzas) {
                 const f = reg.finanzas;
                 const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(val);
@@ -186,7 +255,7 @@ function actualizarInterfaz() {
     };
 }
 
-// FUNCIONALIDAD: BOTÓN BACKUP (Exportar base de datos a un archivo físico descargable)
+// BOTÓN BACKUP
 document.getElementById('btn-backup').addEventListener('click', function() {
     const tx = db.transaction(['registros'], 'readonly');
     const store = tx.objectStore('registros');
@@ -205,9 +274,8 @@ document.getElementById('btn-backup').addEventListener('click', function() {
     };
 });
 
-// FUNCIONALIDAD: BOTÓN INFORME / IMPRIMIR
+// BOTÓN INFORME / IMPRIMIR
 document.getElementById('btn-informe').addEventListener('click', function() {
-    // Cambiamos temporalmente títulos o estilos para la hoja de impresión si es necesario
     const titulo = document.getElementById('titulo-historial');
     const originalText = titulo.innerText;
     
@@ -215,9 +283,6 @@ document.getElementById('btn-informe').addEventListener('click', function() {
         ? "INFORME OPERATIVO Y FINANCIERO - CONTROL PAJARITA" 
         : "INFORME DE JORNADAS OPERATIVAS - CONTROL PAJARITA";
     
-    // Ejecuta el cuadro de impresión nativo del sistema operativo (admite guardar como PDF en móviles y PC)
     window.print();
-    
-    // Restauramos texto original en la interfaz de pantalla
     titulo.innerText = originalText;
 });
