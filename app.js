@@ -1,5 +1,5 @@
 /**
- * Lógica de Control de Aplicación PWA con Enlaces de WhatsApp
+ * Lógica de Control de Aplicación PWA con Enlaces de WhatsApp e Inyección Cruzada
  * Base de Datos Local: IndexedDB
  * © Copyright VIBRAS POSITIVAS HM. Todos los derechos reservados.
  */
@@ -28,11 +28,8 @@ requestDB.onupgradeneeded = function(e) {
 
 requestDB.onsuccess = function(e) {
     db = e.target.result;
+    cargarTarifasEInyecciones(); // Carga LocalStorage o Parámetros del link del Operador
     procesarDatosDesdeURL();
-};
-
-requestDB.onerror = function(e) {
-    console.error("Error al abrir IndexedDB:", e);
 };
 
 function decodeBase64UTF8(str) {
@@ -47,6 +44,40 @@ function encodeBase64UTF8(str) {
     }));
 }
 
+// NUEVO: Procesa si el teléfono es el del Operador y tiene tarifas inyectadas en su link inicial
+function cargarTarifasEInyecciones() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Si viene con inyección de tarifas financieras del Ingeniero (?vH=...)
+    if (urlParams.get('vH')) {
+        document.getElementById('admin-valor-hora').value = urlParams.get('vH');
+        document.getElementById('admin-sueldo-operador').value = urlParams.get('sO');
+        document.getElementById('admin-costo-combustible').value = urlParams.get('cC');
+        document.getElementById('admin-otros-gastos').value = urlParams.get('oG') || 0;
+        
+        // Las guarda localmente en el celular del operario de forma interna
+        localStorage.setItem('tarifa_valor_hora', urlParams.get('vH'));
+        localStorage.setItem('tarifa_sueldo_operador', urlParams.get('sO'));
+        localStorage.setItem('tarifa_costo_combustible', urlParams.get('cC'));
+        localStorage.setItem('tarifa_otros_gastos', urlParams.get('oG') || 0);
+    } else {
+        // Si no hay parámetros en la URL, lee la memoria local normal de este teléfono
+        if (localStorage.getItem('tarifa_valor_hora')) {
+            document.getElementById('admin-valor-hora').value = localStorage.getItem('tarifa_valor_hora');
+        }
+        if (localStorage.getItem('tarifa_sueldo_operador')) {
+            document.getElementById('admin-sueldo-operador').value = localStorage.getItem('tarifa_sueldo_operador');
+        }
+        if (localStorage.getItem('tarifa_costo_combustible')) {
+            document.getElementById('admin-costo-combustible').value = localStorage.getItem('tarifa_costo_combustible');
+        }
+        if (localStorage.getItem('tarifa_otros_gastos')) {
+            document.getElementById('admin-otros-gastos').value = localStorage.getItem('tarifa_otros_gastos');
+        }
+    }
+}
+
+// Absorber datos cuando tú (Ingeniero) toques el reporte diario enviado por el operador
 function procesarDatosDesdeURL() {
     const urlParams = new URLSearchParams(window.location.search);
     const datosBase64 = urlParams.get('d');
@@ -68,7 +99,7 @@ function procesarDatosDesdeURL() {
                     if (!esDuplicado) {
                         store.add(datosDecodificados);
                         tx.oncomplete = function() {
-                            alert(`✔️ ¡Éxito! Registro de la fecha ${datosDecodificados.fecha} integrado a tu base histórica.`);
+                            alert(`✔️ ¡Éxito! Registro absorbido e integrado a tu base histórica.`);
                             window.history.replaceState({}, document.title, window.location.pathname);
                             actualizarInterfaz();
                         };
@@ -80,8 +111,7 @@ function procesarDatosDesdeURL() {
                 };
             }
         } catch (error) {
-            console.error("Error al decodificar los datos del enlace:", error);
-            alert("❌ El enlace de datos de WhatsApp parece estar incompleto o dañado.");
+            console.error("Error al decodificar:", error);
             window.history.replaceState({}, document.title, window.location.pathname);
             actualizarInterfaz();
         }
@@ -90,14 +120,43 @@ function procesarDatosDesdeURL() {
     }
 }
 
-// LÓGICA DEL ADMINISTRADOR COMPLETAMENTE CORREGIDA
+// Guardar Tarifas Locales
+document.getElementById('btn-guardar-tarifas').addEventListener('click', function() {
+    localStorage.setItem('tarifa_valor_hora', document.getElementById('admin-valor-hora').value);
+    localStorage.setItem('tarifa_sueldo_operador', document.getElementById('admin-sueldo-operador').value);
+    localStorage.setItem('tarifa_costo_combustible', document.getElementById('admin-costo-combustible').value);
+    localStorage.setItem('tarifa_otros_gastos', document.getElementById('admin-otros-gastos').value);
+    alert("✔️ Tarifas guardadas localmente.");
+});
+
+// NUEVO: Generar y compartir el Link Maestro con las tarifas inyectadas para el celular del operador
+document.getElementById('btn-compartir-operador').addEventListener('click', function() {
+    const vH = document.getElementById('admin-valor-hora').value;
+    const sO = document.getElementById('admin-sueldo-operador').value;
+    const cC = document.getElementById('admin-costo-combustible').value;
+    const oG = document.getElementById('admin-otros-gastos').value || 0;
+
+    if(!vH || !sO || !cC) {
+        alert("❌ Por favor digita las tarifas antes de generar el link para el operador.");
+        return;
+    }
+
+    const urlBase = window.location.origin + window.location.pathname;
+    const enlaceOperador = `${urlBase}?vH=${vH}&sO=${sO}&cC=${cC}&oG=${oG}`;
+
+    const textoWhatsApp = `🚜 *ENLACE CONFIGURADO CONTROL PAJARITA*\n\n` +
+                          `Hola, toca este enlace para abrir e instalar la aplicación en tu celular con los parámetros listos para trabajar:\n\n🔗 ${enlaceOperador}`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(textoWhatsApp)}`, '_blank');
+});
+
+// Control de Módulo Administrativo
 document.getElementById('btn-toggle-admin').addEventListener('click', function() {
     if (!isAdminAuthenticated) {
         const pass = prompt("Introduce la clave de acceso de Ingeniero:");
         if (pass === CLAVE_ADMIN) {
             isAdminAuthenticated = true;
             this.innerText = "🔒 Cerrar Admin";
-            this.className = "bg-slate-950 text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-800 hover:bg-slate-900 cursor-pointer";
             document.getElementById('modulo-admin').classList.remove('hidden');
             actualizarInterfaz();
         } else {
@@ -106,12 +165,12 @@ document.getElementById('btn-toggle-admin').addEventListener('click', function()
     } else {
         isAdminAuthenticated = false;
         this.innerText = "🔓 Abrir Admin";
-        this.className = "bg-slate-950 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-800 hover:bg-slate-900 cursor-pointer";
         document.getElementById('modulo-admin').classList.add('hidden');
         actualizarInterfaz();
     }
 });
 
+// Estado de Red
 const statusDiv = document.getElementById('connection-status');
 window.addEventListener('online', () => {
     statusDiv.innerHTML = `<span class="w-2 h-2 rounded-full bg-white animate-pulse"></span> En Línea`;
@@ -122,6 +181,7 @@ window.addEventListener('offline', () => {
     statusDiv.className = "bg-rose-700 text-white text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5 shadow-sm";
 });
 
+// Envío del Formulario Diario por el Operario
 document.getElementById('form-registro').addEventListener('submit', function(e) {
     e.preventDefault();
 
@@ -139,6 +199,7 @@ document.getElementById('form-registro').addEventListener('submit', function(e) 
 
     const horasTrabajadas = parseFloat((hFinal - hInicial).toFixed(2));
 
+    // Obtener los valores (ya sea que se cargaron por link o localmente)
     const vHoraContrato = parseFloat(document.getElementById('admin-valor-hora').value) || 0;
     const sOperadorHora = parseFloat(document.getElementById('admin-sueldo-operador').value) || 0;
     const cCombustibleGalon = parseFloat(document.getElementById('admin-costo-combustible').value) || 0;
@@ -251,18 +312,16 @@ function actualizarInterfaz() {
     };
 }
 
+// BACKUP Y REPORTES
 document.getElementById('btn-backup').addEventListener('click', function() {
     const tx = db.transaction(['registros'], 'readonly');
     const store = tx.objectStore('registros');
     const request = store.getAll();
-
     request.onsuccess = function() {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(request.result, null, 2));
         const downloadAnchor = document.createElement('a');
-        const fechaHoy = new Date().toISOString().split('T')[0];
-        
         downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", `Backup_Pajarita_${fechaHoy}.json`);
+        downloadAnchor.setAttribute("download", `Backup_Pajarita_${new Date().toISOString().split('T')[0]}.json`);
         document.body.appendChild(downloadAnchor);
         downloadAnchor.click();
         downloadAnchor.remove();
@@ -272,11 +331,7 @@ document.getElementById('btn-backup').addEventListener('click', function() {
 document.getElementById('btn-informe').addEventListener('click', function() {
     const titulo = document.getElementById('titulo-historial');
     const originalText = titulo.innerText;
-    
-    titulo.innerText = isAdminAuthenticated 
-        ? "INFORME OPERATIVO Y FINANCIERO - CONTROL PAJARITA" 
-        : "INFORME DE JORNADAS OPERATIVAS - CONTROL PAJARITA";
-    
+    titulo.innerText = isAdminAuthenticated ? "INFORME OPERATIVO Y FINANCIERO - CONTROL PAJARITA" : "INFORME DE JORNADAS OPERATIVAS - CONTROL PAJARITA";
     window.print();
     titulo.innerText = originalText;
 });
