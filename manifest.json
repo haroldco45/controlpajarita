@@ -1,0 +1,18 @@
+{
+  "short_name": "PajaritaControl",
+  "name": "Control Operativo de Retroexcavadora",
+  "description": "Aplicación offline para el seguimiento de horómetro, combustible y mantenimiento de retroexcavadoras pajaritas.",
+  "icons": [
+    {
+      "src": "icon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "index.html",
+  "background_color": "#0f172a",
+  "theme_color": "#f59e0b",
+  "display": "standalone",
+  "orientation": "portrait"
+}
