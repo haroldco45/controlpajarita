@@ -13,7 +13,7 @@ if ('serviceWorker' in navigator) {
 }
 
 let db;
-let isAdminAuthenticated = false;
+let isAdminAuthenticated = false; // Variable lógica de control de estado
 const CLAVE_ADMIN = "1234"; 
 const TELEFONO_INGENIERO = "573117700431"; 
 
@@ -151,7 +151,7 @@ document.getElementById('btn-compartir-operador').addEventListener('click', func
     window.open(`https://wa.me/?text=${encodeURIComponent(textoWhatsApp)}`, '_blank');
 });
 
-// Control de Módulo Administrativo
+// LÓGICA DE CONTROL ADMINISTRATIVO TOTALMENTE BLINDADA CONTRA TEXTOS
 document.getElementById('btn-toggle-admin').addEventListener('click', function() {
     if (!isAdminAuthenticated) {
         const pass = prompt("Introduce la clave de acceso de Ingeniero:");
@@ -313,4 +313,84 @@ function actualizarInterfaz() {
 }
 
 // BACKUP Y REPORTES
-document.getElementById('btn-backup').addEventListener('click', function
+document.getElementById('btn-backup').addEventListener('click', function() {
+    const tx = db.transaction(['registros'], 'readonly');
+    const store = tx.objectStore('registros');
+    const request = store.getAll();
+    request.onsuccess = function() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(request.result, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `Backup_Pajarita_${new Date().toISOString().split('T')[0]}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+    };
+});
+
+document.getElementById('btn-informe').addEventListener('click', function() {
+    const titulo = document.getElementById('titulo-historial');
+    const originalText = titulo.innerText;
+    titulo.innerText = isAdminAuthenticated ? "INFORME OPERATIVO Y FINANCIERO - CONTROL PAJARITA" : "INFORME DE JORNADAS OPERATIVAS - CONTROL PAJARITA";
+    window.print();
+    titulo.innerText = originalText;
+});
+
+// LÓGICA DE RESTAURACIÓN DE COPIA DE SEGURIDAD (IMPORTAR JSON)
+document.getElementById('input-restore').addEventListener('change', function(e) {
+    const archivo = e.target.files[0];
+    if (!archivo) return;
+
+    const lector = new FileReader();
+    lector.onload = function(evento) {
+        try {
+            const registrosImportados = JSON.parse(evento.target.result);
+            
+            if (!Array.isArray(registrogImportados) && Array.isArray(registrosImportados)) {
+                // Validación tolerante de formatos
+            } else if (!Array.isArray(registrosImportados)) {
+                alert("❌ El archivo seleccionado no tiene el formato de copia de seguridad válido.");
+                return;
+            }
+
+            if (!db) {
+                alert("❌ Base de datos no inicializada. Inténtalo de nuevo.");
+                return;
+            }
+
+            const tx = db.transaction(['registros'], 'readwrite');
+            const store = tx.objectStore('registros');
+            
+            const requestCheck = store.getAll();
+            
+            requestCheck.onsuccess = function() {
+                const existentes = requestCheck.result;
+                let agregados = 0;
+                let duplicados = 0;
+
+                registrosImportados.forEach(reg => {
+                    const yaExiste = existentes.some(e => e.timestamp === reg.timestamp);
+                    if (!yaExiste) {
+                        if (reg.id) delete reg.id; 
+                        store.add(reg);
+                        agregados++;
+                    } else {
+                        duplicados++;
+                    }
+                });
+
+                tx.oncomplete = function() {
+                    alert(`📥 ¡Restauración Completada!\n\n✔️ Registros nuevos integrados: ${agregados}\nℹ️ Registros omitidos por ya existir: ${duplicados}`);
+                    document.getElementById('input-restore').value = ""; 
+                    actualizarInterfaz(); 
+                };
+            };
+
+        } catch (error) {
+            alert("❌ Ocurrió un error al procesar el archivo JSON. Asegúrate de que esté intacto.");
+            console.error(error);
+        }
+    };
+    
+    lector.readAsText(archivo);
+});
