@@ -15,7 +15,7 @@ if ('serviceWorker' in navigator) {
 let db;
 let isAdminAuthenticated = false;
 const CLAVE_ADMIN = "1234"; 
-const TELEFONO_INGENIERO = "573117700431"; // Formato internacional para Colombia
+const TELEFONO_INGENIERO = "573117700431"; 
 
 const requestDB = indexedDB.open('ControlPajaritaDB', 2);
 
@@ -35,21 +35,18 @@ requestDB.onerror = function(e) {
     console.error("Error al abrir IndexedDB:", e);
 };
 
-// Función segura para decodificar Base64 con soporte de caracteres especiales (UTF-8)
 function decodeBase64UTF8(str) {
     return decodeURIComponent(atob(str).split('').map(function(c) {
         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
     }).join(''));
 }
 
-// Función segura para codificar Base64 con soporte de caracteres especiales (UTF-8)
 function encodeBase64UTF8(str) {
     return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
         return String.fromCharCode('0x' + p1);
     }));
 }
 
-// Procesar y absorber los datos que llegan desde el link de WhatsApp
 function procesarDatosDesdeURL() {
     const urlParams = new URLSearchParams(window.location.search);
     const datosBase64 = urlParams.get('d');
@@ -93,15 +90,14 @@ function procesarDatosDesdeURL() {
     }
 }
 
-// Control de Autenticación de Módulo Administrativo
+// LÓGICA DEL ADMINISTRADOR COMPLETAMENTE CORREGIDA
 document.getElementById('btn-toggle-admin').addEventListener('click', function() {
     if (!isAdminAuthenticated) {
         const pass = prompt("Introduce la clave de acceso de Ingeniero:");
         if (pass === CLAVE_ADMIN) {
             isAdminAuthenticated = true;
-            this.innerText = "Unlock Admin 🔓";
-            this.classList.remove('text-amber-400');
-            this.classList.add('text-emerald-400');
+            this.innerText = "🔒 Cerrar Admin";
+            this.className = "bg-slate-950 text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-800 hover:bg-slate-900 cursor-pointer";
             document.getElementById('modulo-admin').classList.remove('hidden');
             actualizarInterfaz();
         } else {
@@ -109,15 +105,13 @@ document.getElementById('btn-toggle-admin').addEventListener('click', function()
         }
     } else {
         isAdminAuthenticated = false;
-        this.innerText = "Lock Admin 🔒";
-        this.classList.remove('text-emerald-400');
-        this.classList.add('text-amber-400');
+        this.innerText = "🔓 Abrir Admin";
+        this.className = "bg-slate-950 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-800 hover:bg-slate-900 cursor-pointer";
         document.getElementById('modulo-admin').classList.add('hidden');
         actualizarInterfaz();
     }
 });
 
-// Manejo de Estado de Red
 const statusDiv = document.getElementById('connection-status');
 window.addEventListener('online', () => {
     statusDiv.innerHTML = `<span class="w-2 h-2 rounded-full bg-white animate-pulse"></span> En Línea`;
@@ -128,7 +122,6 @@ window.addEventListener('offline', () => {
     statusDiv.className = "bg-rose-700 text-white text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5 shadow-sm";
 });
 
-// Guardar Registro Diario y Disparar WhatsApp
 document.getElementById('form-registro').addEventListener('submit', function(e) {
     e.preventDefault();
 
@@ -165,7 +158,6 @@ document.getElementById('form-registro').addEventListener('submit', function(e) 
         timestamp: new Date().getTime()
     };
 
-    // 1. Guardar localmente
     const tx = db.transaction(['registros'], 'readwrite');
     const store = tx.objectStore('registros');
     store.add(nuevoRegistro);
@@ -174,15 +166,11 @@ document.getElementById('form-registro').addEventListener('submit', function(e) 
         document.getElementById('form-registro').reset();
         actualizarInterfaz();
 
-        // 2. CONSTRUIR ENLACE DE TRANSFERENCIA SEGURO
         const urlBase = window.location.origin + window.location.pathname;
         const stringCadena = JSON.stringify(nuevoRegistro);
-        
-        // Uso de la nueva función de codificación sin métodos obsoletos
         const base64Datos = encodeBase64UTF8(stringCadena);
         const enlaceFinalDeSincronizacion = `${urlBase}?d=${base64Datos}`;
 
-        // 3. REDACTAR MENSAJE PARA WHATSAPP
         const textoMensaje = `⚠️ *REPORTE PAJARITA - ${fecha}*\n\n` +
                              `👷 *Operador:* ${operador}\n` +
                              `⏱️ *Horas Trabajadas:* ${horasTrabajadas} hrs\n` +
@@ -190,15 +178,11 @@ document.getElementById('form-registro').addEventListener('submit', function(e) 
                              `📝 *Notas:* ${notas || 'Ninguna'}\n\n` +
                              `🔗 *Ingeniero, toque este link para actualizar su base histórica:* \n${enlaceFinalDeSincronizacion}`;
 
-        // 4. DISPARAR WHATSAPP (Formato compatible universal)
         const urlWhatsapp = `https://wa.me/${TELEFONO_INGENIERO}?text=${encodeURIComponent(textoMensaje)}`;
-        
-        // Redirección directa en la misma pestaña para mejorar compatibilidad en PWAs móviles
         window.location.href = urlWhatsapp;
     };
 });
 
-// Renderizado de Datos Dinámicos
 function actualizarInterfaz() {
     if (!db) return;
     const tx = db.transaction(['registros'], 'readonly');
@@ -267,7 +251,6 @@ function actualizarInterfaz() {
     };
 }
 
-// BOTÓN BACKUP
 document.getElementById('btn-backup').addEventListener('click', function() {
     const tx = db.transaction(['registros'], 'readonly');
     const store = tx.objectStore('registros');
@@ -286,7 +269,6 @@ document.getElementById('btn-backup').addEventListener('click', function() {
     };
 });
 
-// BOTÓN INFORME / IMPRIMIR
 document.getElementById('btn-informe').addEventListener('click', function() {
     const titulo = document.getElementById('titulo-historial');
     const originalText = titulo.innerText;
