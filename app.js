@@ -1,21 +1,22 @@
 /**
- * Lógica de Control de Aplicación PWA
+ * Lógica de Control de Aplicación PWA con Módulo Financiero
  * Base de Datos Local: IndexedDB
  * © Copyright Vibras Positivas. Todos los derechos reservados.
  */
 
-// Registro del Service Worker para el modo Offline
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
-            .then(reg => console.log('PWA: Service Worker registrado de forma exitosa.', reg.scope))
-            .catch(err => console.error('PWA: Fallo en el registro del Service Worker.', err));
+            .then(reg => console.log('PWA: Service Worker registrado.'))
+            .catch(err => console.error('PWA: Fallo en SW.', err));
     });
 }
 
-// Configuración de la base de datos local IndexedDB
 let db;
-const requestDB = indexedDB.open('ControlPajaritaDB', 1);
+let isAdminAuthenticated = false;
+const CLAVE_ADMIN = "1234"; // Cambiar por la contraseña de preferencia del Ingeniero
+
+const requestDB = indexedDB.open('ControlPajaritaDB', 2); // Subimos versión por cambio de esquema financiero
 
 requestDB.onupgradeneeded = function(e) {
     db = e.target.result;
@@ -29,24 +30,42 @@ requestDB.onsuccess = function(e) {
     actualizarInterfaz();
 };
 
-requestDB.onerror = function(e) {
-    console.error('Error abriendo la base de datos local:', e.target.errorCode);
-};
+// Control de Autenticación de Módulo Administrativo
+document.getElementById('btn-toggle-admin').addEventListener('click', function() {
+    if (!isAdminAuthenticated) {
+        const pass = prompt("Introduce la clave de acceso de Ingeniero:");
+        if (pass === CLAVE_ADMIN) {
+            isAdminAuthenticated = true;
+            this.innerText = "Unlock Admin 🔓";
+            this.classList.remove('text-amber-400');
+            this.classList.add('text-emerald-400');
+            document.getElementById('modulo-admin').classList.remove('hidden');
+            actualizarInterfaz(); // Re-renderizar para mostrar datos financieros
+        } else {
+            alert("❌ Clave incorrecta. Acceso denegado.");
+        }
+    } else {
+        isAdminAuthenticated = false;
+        this.innerText = "Lock Admin 🔒";
+        this.classList.remove('text-emerald-400');
+        this.classList.add('text-amber-400');
+        document.getElementById('modulo-admin').classList.add('hidden');
+        actualizarInterfaz(); // Ocultar datos financieros de la vista común
+    }
+});
 
-// Controladores visuales de estado de conexión de red
+// Manejo de Red
 const statusDiv = document.getElementById('connection-status');
 window.addEventListener('online', () => {
     statusDiv.innerHTML = `<span class="w-2 h-2 rounded-full bg-white animate-pulse"></span> En Línea`;
     statusDiv.className = "bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5 shadow-sm";
-    // Aquí se ejecutaría un script para subir los datos de IndexedDB a un servidor en la nube (ej. Firebase/Supabase)
 });
-
 window.addEventListener('offline', () => {
     statusDiv.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Modo Offline`;
     statusDiv.className = "bg-rose-700 text-white text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5 shadow-sm";
 });
 
-// Manejo del Envío del Formulario
+// Guardar Registro Diario
 document.getElementById('form-registro').addEventListener('submit', function(e) {
     e.preventDefault();
 
@@ -62,18 +81,29 @@ document.getElementById('form-registro').addEventListener('submit', function(e) 
         return;
     }
 
+    const horasTrabajadas = parseFloat((hFinal - hInicial).toFixed(2));
+
+    // Captura de variables financieras del Admin (Si no está activo, guarda en 0)
+    const vHoraContrato = parseFloat(document.getElementById('admin-valor-hora').value) || 0;
+    const sOperadorHora = parseFloat(document.getElementById('admin-sueldo-operador').value) || 0;
+    const cCombustibleGalon = parseFloat(document.getElementById('admin-costo-combustible').value) || 0;
+    const oGastos = parseFloat(document.getElementById('admin-otros-gastos').value) || 0;
+
+    // Cálculos matemáticos de control de pérdidas y ganancias
+    const ingresoBruto = horasTrabajadas * vHoraContrato;
+    const pagoOperadorTotal = horasTrabajadas * sOperadorHora;
+    const costoCombustibleTotal = combustible * cCombustibleGalon;
+    const utilidadNetaIngeniero = ingresoBruto - (pagoOperadorTotal + costoCombustibleTotal + oGastos);
+
     const nuevoRegistro = {
-        fecha,
-        operador,
-        hInicial,
-        hFinal,
-        horasTrabajadas: parseFloat((hFinal - hInicial).toFixed(2)),
-        combustible,
-        notas,
+        fecha, operador, hInicial, hFinal, horasTrabajadas, combustible, notas,
+        finanzas: {
+            vHoraContrato, sOperadorHora, cCombustibleGalon, oGastos,
+            ingresoBruto, pagoOperadorTotal, costoCombustibleTotal, utilidadNetaIngeniero
+        },
         timestamp: new Date().getTime()
     };
 
-    // Almacenamiento en IndexedDB
     const tx = db.transaction(['registros'], 'readwrite');
     const store = tx.objectStore('registros');
     store.add(nuevoRegistro);
@@ -81,11 +111,13 @@ document.getElementById('form-registro').addEventListener('submit', function(e) 
     tx.oncomplete = function() {
         document.getElementById('form-registro').reset();
         actualizarInterfaz();
+        alert('✔️ Registro guardado con éxito localmente.');
     };
 });
 
-// Renderizado y recálculo de KPI de mantenimiento en la UI
+// Renderizado de Datos Dinámicos
 function actualizarInterfaz() {
+    if (!db) return;
     const tx = db.transaction(['registros'], 'readonly');
     const store = tx.objectStore('registros');
     const request = store.getAll();
@@ -95,54 +127,97 @@ function actualizarInterfaz() {
         const lista = document.getElementById('lista-registros');
         
         if (registros.length === 0) {
-            lista.innerHTML = `<p class="text-sm text-slate-500 italic text-center py-4">No hay registros en este dispositivo.</p>`;
+            lista.innerHTML = `<p class="text-sm text-slate-500 italic text-center py-4">No hay registros guardados.</p>`;
             document.getElementById('stat-horometro').innerText = "0.0 hrs";
             document.getElementById('stat-mantenimiento').innerText = "Sin registros";
-            document.getElementById('stat-mantenimiento').className = "text-sm font-bold text-slate-400 block mt-1";
             return;
         }
 
-        // Ordenar registros por fecha (más reciente arriba)
         registros.sort((a, b) => b.timestamp - a.timestamp);
 
-        // Obtener el último horómetro total registrado
         const ultimoHorometro = registros[0].hFinal;
         document.getElementById('stat-horometro').innerText = `${ultimoHorometro.toFixed(1)} hrs`;
 
-        // Lógica de Mantenimiento Preventivo (Ciclos de 250 horas)
         const cicloMantenimiento = 250;
         const horasRestantesParaCambio = cicloMantenimiento - (ultimoHorometro % cicloMantenimiento);
-        
-        const mtoStat = document.getElementById('stat-mantenimiento');
-        mtoStat.innerText = `Faltan ${horasRestantesParaCambio.toFixed(1)} hrs`;
-        
-        if (horasRestantesParaCambio <= 25) {
-            mtoStat.className = "text-sm font-black text-rose-500 block mt-1 animate-pulse";
-            mtoStat.innerText += " ⚠️ ¡CAMBIO DE ACEITE PRÓXIMO!";
-        } else if (horasRestantesParaCambio <= 60) {
-            mtoStat.className = "text-sm font-bold text-amber-500 block mt-1";
-        } else {
-            mtoStat.className = "text-sm font-bold text-emerald-400 block mt-1";
-        }
+        document.getElementById('stat-mantenimiento').innerText = `Faltan ${horasRestantesParaCambio.toFixed(1)} hrs`;
 
-        // Renderizar lista en la pantalla
         lista.innerHTML = '';
         registros.forEach(reg => {
             const item = document.createElement('div');
-            item.className = "bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs space-y-1.5";
-            item.innerHTML = `
-                <div class="flex justify-between font-bold text-slate-300">
+            item.className = "bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs space-y-2 break-inside-avoid";
+            
+            // Sección estándar visible para el operador
+            let htmlContenido = `
+                <div class="flex justify-between font-bold text-slate-300 border-b border-slate-900 pb-1">
                     <span>📅 ${reg.fecha}</span>
                     <span class="text-amber-400">⏱️ +${reg.horasTrabajadas} hrs</span>
                 </div>
                 <div class="text-slate-400 grid grid-cols-2 gap-1">
-                    <p>👷 <span class="text-slate-300">${reg.operador}</span></p>
-                    <p>⛽ ${reg.combustible} Galones</p>
-                    <p class="col-span-2 text-slate-500">Rango: ${reg.hInicial} -> ${reg.hFinal}</p>
+                    <p>👷 Operador: <span class="text-slate-200">${reg.operador}</span></p>
+                    <p>⛽ Combustible: ${reg.combustible} Gal.</p>
+                    <p class="col-span-2 text-[11px] text-slate-500">Horómetro: ${reg.hInicial} hrs ➡️ ${reg.hFinal} hrs</p>
                 </div>
-                ${reg.notas ? `<p class="text-slate-400 italic bg-slate-900/50 p-1.5 rounded mt-1 text-[11px] border-l-2 border-slate-700">${reg.notas}</p>` : ''}
+                ${reg.notas ? `<p class="text-slate-400 italic bg-slate-900/40 p-1.5 rounded text-[11px] border-l-2 border-slate-600">${reg.notas}</p>` : ''}
             `;
+
+            // Inyección de Datos Financieros Exclusivos si el Ingeniero está autenticado
+            if (isAdminAuthenticated && reg.finanzas) {
+                const f = reg.finanzas;
+                const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(val);
+                
+                htmlContenido += `
+                    <div class="mt-2 pt-2 border-t border-dashed border-slate-800 grid grid-cols-2 gap-1.5 bg-amber-500/5 p-2 rounded border border-amber-500/10 data-financial">
+                        <p class="text-slate-400 font-medium">Contratado: <span class="text-emerald-400 font-bold">${formatMoney(f.ingresoBruto)}</span></p>
+                        <p class="text-slate-400 font-medium">Sueldo Op: <span class="text-rose-400 font-bold">${formatMoney(f.pagoOperadorTotal)}</span></p>
+                        <p class="text-slate-400 font-medium">Gasto ACPM: <span class="text-rose-400 font-bold">${formatMoney(f.costoCombustibleTotal)}</span></p>
+                        <p class="text-slate-400 font-medium">Otros Gastos: <span class="text-rose-400 font-bold">${formatMoney(f.oGastos)}</span></p>
+                        <div class="col-span-2 mt-1 pt-1 border-t border-slate-800 flex justify-between items-center">
+                            <span class="font-bold text-amber-400 uppercase tracking-wider text-[10px]">Utilidad Neta Ingeniero:</span>
+                            <span class="font-black ${f.utilidadNetaIngeniero >= 0 ? 'text-emerald-400' : 'text-rose-500'} text-sm">${formatMoney(f.utilidadNetaIngeniero)}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            item.innerHTML = htmlContenido;
             lista.appendChild(item);
         });
     };
 }
+
+// FUNCIONALIDAD: BOTÓN BACKUP (Exportar base de datos a un archivo físico descargable)
+document.getElementById('btn-backup').addEventListener('click', function() {
+    const tx = db.transaction(['registros'], 'readonly');
+    const store = tx.objectStore('registros');
+    const request = store.getAll();
+
+    request.onsuccess = function() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(request.result, null, 2));
+        const downloadAnchor = document.createElement('a');
+        const fechaHoy = new Date().toISOString().split('T')[0];
+        
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `Backup_Pajarita_${fechaHoy}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+    };
+});
+
+// FUNCIONALIDAD: BOTÓN INFORME / IMPRIMIR
+document.getElementById('btn-informe').addEventListener('click', function() {
+    // Cambiamos temporalmente títulos o estilos para la hoja de impresión si es necesario
+    const titulo = document.getElementById('titulo-historial');
+    const originalText = titulo.innerText;
+    
+    titulo.innerText = isAdminAuthenticated 
+        ? "INFORME OPERATIVO Y FINANCIERO - CONTROL PAJARITA" 
+        : "INFORME DE JORNADAS OPERATIVAS - CONTROL PAJARITA";
+    
+    // Ejecuta el cuadro de impresión nativo del sistema operativo (admite guardar como PDF en móviles y PC)
+    window.print();
+    
+    // Restauramos texto original en la interfaz de pantalla
+    titulo.innerText = originalText;
+});
