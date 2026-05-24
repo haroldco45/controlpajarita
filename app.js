@@ -1,6 +1,6 @@
 /**
  * Lógica de Control de Aplicación PWA con Enlaces de WhatsApp e Inyección Cruzada
- * Base de Datos Local: IndexedDB
+ * Base de Datos Local: IndexedDB con Sistema de Importación/Exportación Restaurable
  * © Copyright VIBRAS POSITIVAS HM. Todos los derechos reservados.
  */
 
@@ -32,6 +32,10 @@ requestDB.onsuccess = function(e) {
     procesarDatosDesdeURL();
 };
 
+requestDB.onerror = function(e) {
+    console.error("Error al abrir IndexedDB:", e);
+};
+
 function decodeBase64UTF8(str) {
     return decodeURIComponent(atob(str).split('').map(function(c) {
         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
@@ -44,24 +48,21 @@ function encodeBase64UTF8(str) {
     }));
 }
 
-// NUEVO: Procesa si el teléfono es el del Operador y tiene tarifas inyectadas en su link inicial
+// Procesa si el teléfono es el del Operador y tiene tarifas inyectadas en su link inicial
 function cargarTarifasEInyecciones() {
     const urlParams = new URLSearchParams(window.location.search);
     
-    // Si viene con inyección de tarifas financieras del Ingeniero (?vH=...)
     if (urlParams.get('vH')) {
         document.getElementById('admin-valor-hora').value = urlParams.get('vH');
         document.getElementById('admin-sueldo-operador').value = urlParams.get('sO');
         document.getElementById('admin-costo-combustible').value = urlParams.get('cC');
         document.getElementById('admin-otros-gastos').value = urlParams.get('oG') || 0;
         
-        // Las guarda localmente en el celular del operario de forma interna
         localStorage.setItem('tarifa_valor_hora', urlParams.get('vH'));
         localStorage.setItem('tarifa_sueldo_operador', urlParams.get('sO'));
         localStorage.setItem('tarifa_costo_combustible', urlParams.get('cC'));
         localStorage.setItem('tarifa_otros_gastos', urlParams.get('oG') || 0);
     } else {
-        // Si no hay parámetros en la URL, lee la memoria local normal de este teléfono
         if (localStorage.getItem('tarifa_valor_hora')) {
             document.getElementById('admin-valor-hora').value = localStorage.getItem('tarifa_valor_hora');
         }
@@ -129,7 +130,7 @@ document.getElementById('btn-guardar-tarifas').addEventListener('click', functio
     alert("✔️ Tarifas guardadas localmente.");
 });
 
-// NUEVO: Generar y compartir el Link Maestro con las tarifas inyectadas para el celular del operador
+// Generar y compartir el Link Maestro con las tarifas inyectadas para el celular del operador
 document.getElementById('btn-compartir-operador').addEventListener('click', function() {
     const vH = document.getElementById('admin-valor-hora').value;
     const sO = document.getElementById('admin-sueldo-operador').value;
@@ -199,7 +200,6 @@ document.getElementById('form-registro').addEventListener('submit', function(e) 
 
     const horasTrabajadas = parseFloat((hFinal - hInicial).toFixed(2));
 
-    // Obtener los valores (ya sea que se cargaron por link o localmente)
     const vHoraContrato = parseFloat(document.getElementById('admin-valor-hora').value) || 0;
     const sOperadorHora = parseFloat(document.getElementById('admin-sueldo-operador').value) || 0;
     const cCombustibleGalon = parseFloat(document.getElementById('admin-costo-combustible').value) || 0;
@@ -313,25 +313,4 @@ function actualizarInterfaz() {
 }
 
 // BACKUP Y REPORTES
-document.getElementById('btn-backup').addEventListener('click', function() {
-    const tx = db.transaction(['registros'], 'readonly');
-    const store = tx.objectStore('registros');
-    const request = store.getAll();
-    request.onsuccess = function() {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(request.result, null, 2));
-        const downloadAnchor = document.createElement('a');
-        downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", `Backup_Pajarita_${new Date().toISOString().split('T')[0]}.json`);
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
-    };
-});
-
-document.getElementById('btn-informe').addEventListener('click', function() {
-    const titulo = document.getElementById('titulo-historial');
-    const originalText = titulo.innerText;
-    titulo.innerText = isAdminAuthenticated ? "INFORME OPERATIVO Y FINANCIERO - CONTROL PAJARITA" : "INFORME DE JORNADAS OPERATIVAS - CONTROL PAJARITA";
-    window.print();
-    titulo.innerText = originalText;
-});
+document.getElementById('btn-backup').addEventListener('click', function
