@@ -1,18 +1,71 @@
-/* Personalización de scrollbars del historial */
-#lista-registros::-webkit-scrollbar {
-    width: 6px;
-}
-#lista-registros::-webkit-scrollbar-track {
-    background: #0f172a;
-    border-radius: 4px;
-}
-#lista-registros::-webkit-scrollbar-thumb {
-    background: #334155;
-    border-radius: 4px;
-}
-#lista-registros::-webkit-scrollbar-thumb:hover {
-    background: #475569;
-}
-body {
-    -webkit-tap-highlight-color: transparent;
+/* Reglas de optimización multimedia para Impresión e Informes */
+@media print {
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-size: 12px;
+        padding: 0;
+    }
+    
+    /* Ocultar elementos innecesarios en el reporte impreso */
+    .no-print, 
+    #form-registro, 
+    #sec-formulario, 
+    #btn-toggle-admin,
+    #connection-status,
+    section.grid {
+        display: none !important;
+    }
+
+    /* Modificación de contenedores para usar todo el ancho de página */
+    main {
+        max-width: 100% !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .print-container {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+
+    #lista-registros {
+        max-height: none !important;
+        overflow: visible !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 15px !important;
+    }
+
+    /* Estilo de filas de historial tipo reporte formal */
+    #lista-registros > div {
+        background: #f8fafc !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+        page-break-inside: avoid;
+        box-shadow: none !important;
+        padding: 12px !important;
+        border-radius: 6px !important;
+    }
+
+    .data-financial {
+        background: #f1f5f9 !important;
+        border: 1px dashed #94a3b8 !important;
+    }
+
+    .printable-header {
+        background: #f59e0b !important;
+        color: #000000 !important;
+        padding: 10px !important;
+        border-bottom: 2px solid #000000;
+    }
+
+    .printable-footer {
+        color: #475569 !important;
+        border-top: 1px solid #94a3b8 !important;
+        margin-top: 30px !important;
+    }
 }
